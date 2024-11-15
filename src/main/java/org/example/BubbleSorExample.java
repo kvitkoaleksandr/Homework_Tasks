@@ -7,6 +7,7 @@ public class BubbleSorExample {
 
         for (int i = 0; i < n - 1; i++) {
             swapped = false; // изначально предполагаем, что замен не будет
+            //
 
             // Внутренний цикл проходит по массиву
             for (int j = 0; j < n - i - 1; j++) {
