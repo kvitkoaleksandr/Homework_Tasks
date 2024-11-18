@@ -1,5 +1,7 @@
 package org.example.javaCore;
 
+import org.example.javaCore.task1.LetterCounter;
+import org.example.javaCore.task1.LetterType;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
