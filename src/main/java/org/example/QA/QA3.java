@@ -18,7 +18,7 @@ public class QA3 {
     // Метод для разделения массива
     private int partition(int[] arr, int low, int high) {
         int pivot = arr[high]; // Берём последний элемент как pivot
-        int i = low - 1; // Индекс для элемента, который должен быть меньше pivot
+        int i = low - 1; // для элемента, который должен быть меньше pivot
 
         for (int j = low; j < high; j++) {
             // Если текущий элемент меньше pivot, перемещаем его влево
