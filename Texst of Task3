@@ -1,0 +1,147 @@
+Код класса:
+java
+Копировать код
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+public class JSONToCSVConverter {
+Импорты:
+
+ObjectMapper: Класс из библиотеки Jackson, который используется для преобразования JSON в Java-объекты и обратно.
+TypeReference: Используется для указания типа, в который мы преобразуем JSON (в данном случае это список карт).
+Collectors: Утилита для работы с Stream API, чтобы собирать данные в удобные структуры (например, строки).
+Объявление класса:
+
+Это публичный класс JSONToCSVConverter, который содержит метод для преобразования JSON в CSV.
+Метод convertJSONToCSV
+java
+Копировать код
+public String convertJSONToCSV(String inputFile) throws IOException {
+String inputFile: Путь к входному JSON-файлу передаётся как строка.
+throws IOException: Если возникнет ошибка чтения файла, метод выбросит исключение IOException.
+Создание ObjectMapper
+java
+Копировать код
+ObjectMapper objectMapper = new ObjectMapper();
+Создаётся объект ObjectMapper, который используется для чтения JSON и преобразования его в Java-объекты.
+Это основной класс из Jackson для работы с JSON.
+Чтение JSON-файла
+java
+Копировать код
+List<Map<String, Object>> users = objectMapper.readValue(new File(inputFile), new TypeReference<>() {});
+new File(inputFile):
+
+Открываем JSON-файл, путь к которому передан в параметре inputFile.
+objectMapper.readValue(...):
+
+Читаем содержимое JSON-файла и преобразуем его в Java-объект.
+TypeReference<>():
+
+Указываем, что JSON нужно преобразовать в список (List), где каждая запись — это карта (Map<String, Object>).
+Например:
+json
+Копировать код
+[
+    {"name": "Алексей", "age": 25, "city": "Москва"},
+    {"name": "Мария", "age": 30, "city": "Санкт-Петербург"}
+]
+Превратится в:
+java
+Копировать код
+[
+    { "name" : "Алексей", "age" : 25, "city" : "Москва" },
+    { "name" : "Мария", "age" : 30, "city" : "Санкт-Петербург" }
+]
+Обработка пустого списка
+java
+Копировать код
+if (users.isEmpty()) {
+    return ""; // Если JSON пуст, возвращаем пустую строку
+}
+Если JSON-файл пуст (не содержит объектов), метод возвращает пустую строку. Это предотвращает дальнейшую обработку.
+Формирование заголовков
+java
+Копировать код
+String headers = String.join(",", users.get(0).keySet());
+users.get(0).keySet():
+
+Берём первую запись из списка users и получаем её ключи (например, "name", "age", "city").
+String.join(",", ...):
+
+Объединяем ключи через запятую, чтобы сформировать строку заголовков.
+Пример: "name,age,city"
+Формирование строк данных
+java
+Копировать код
+String rows = users.stream()
+        .map(user -> user.values().stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(",")))
+        .collect(Collectors.joining("\n"));
+users.stream():
+
+Преобразуем список users в стрим для обработки.
+map(user -> user.values().stream()...):
+
+Для каждой записи (Map<String, Object>) получаем её значения (values()), превращая их в стрим.
+map(String::valueOf):
+
+Преобразуем каждое значение в строку (например, 25 → "25").
+collect(Collectors.joining(",")):
+
+Объединяем значения записи через запятую, чтобы сформировать строку данных.
+Пример: "Алексей,25,Москва"
+collect(Collectors.joining("\n")):
+
+Объединяем все строки данных, разделяя их символом новой строки (\n).
+Возвращение результата
+java
+Копировать код
+return headers + "\n" + rows;
+Объединяем заголовки и строки данных в одну строку, разделяя их символом новой строки.
+Пример:
+Копировать код
+name,age,city
+Алексей,25,Москва
+Мария,30,Санкт-Петербург
+Иван,20,Казань
+Пример использования:
+java
+Копировать код
+public static void main(String[] args) {
+    JSONToCSVConverter converter = new JSONToCSVConverter();
+    try {
+        String inputFile = "users.json";
+        String csvContent = converter.convertJSONToCSV(inputFile);
+
+        // Записываем CSV в файл
+        Files.write(Paths.get("users.csv"), csvContent.getBytes());
+        System.out.println("CSV успешно создан: users.csv");
+
+    } catch (IOException e) {
+        System.err.println("Ошибка: " + e.getMessage());
+    }
+}
+Пошаговый разбор вызова:
+Создаём объект JSONToCSVConverter.
+
+JSONToCSVConverter converter = new JSONToCSVConverter();
+Вызываем метод convertJSONToCSV.
+
+Передаём путь к JSON-файлу: converter.convertJSONToCSV(inputFile);.
+Метод возвращает CSV-строку.
+
+Результат сохраняется в переменную csvContent.
+Записываем CSV-строку в файл.
+
+Сохраняем данные из csvContent в файл users.csv с помощью Files.write.
+Итог:
+Метод стал универсальным: он возвращает строку CSV, а не работает с файлами напрямую.
+Чёткое разделение обязанностей: метод только преобразует JSON в CSV, а вызвавший код решает, как использовать результат.
+Легко тестировать и переиспользовать.
