@@ -1,0 +1,101 @@
+1. Фильтрация строк по ключевому слову
+java
+Копировать код
+try (BufferedReader reader = Files.newBufferedReader(Paths.get(inputFile));
+     BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFile))) {
+Используем BufferedReader для построчного чтения файла.
+Используем BufferedWriter для записи строк в новый файл.
+java
+Копировать код
+String line;
+while ((line = reader.readLine()) != null) {
+    if (line.contains(keyword)) {
+        writer.write(line);
+        writer.newLine();
+    }
+}
+Читаем файл строка за строкой.
+Если строка содержит ключевое слово (line.contains(keyword)), записываем её в выходной файл.
+2. Подсчёт частоты встречаемости слов
+java
+Копировать код
+Map<String, Integer> wordFrequency = new HashMap<>();
+Создаём HashMap для хранения частоты слов.
+java
+Копировать код
+String[] words = line.split("\\W+");
+Разделяем строку на слова с использованием регулярного выражения \\W+ (небуквенные символы как разделители).
+java
+Копировать код
+word = word.toLowerCase();
+wordFrequency.put(word, wordFrequency.getOrDefault(word, 0) + 1);
+Приводим каждое слово к нижнему регистру, чтобы учитывать только уникальные слова.
+Увеличиваем счётчик для текущего слова.
+Пример использования:
+java
+Копировать код
+public class Main {
+    public static void main(String[] args) {
+        LargeFileProcessor processor = new LargeFileProcessor();
+        String inputFile = "large_log_file.txt";
+        String errorFile = "error_logs.txt";
+
+        try {
+            // Фильтрация строк с ключевым словом "ERROR"
+            processor.filterLinesWithKeyword(inputFile, errorFile, "ERROR");
+
+            // Подсчёт частоты слов
+            Map<String, Integer> wordFrequency = processor.countWordFrequency(inputFile);
+            wordFrequency.entrySet()
+                         .stream()
+                         .sorted(Map.Entry.<String, Integer>comparingByValue().reversed())
+                         .forEach(entry -> System.out.println(entry.getKey() + ": " + entry.getValue()));
+
+        } catch (IOException e) {
+            System.err.println("Ошибка: " + e.getMessage());
+        }
+    }
+}
+Тестовые данные:
+Входной файл large_log_file.txt:
+
+vbnet
+Копировать код
+INFO: Application started
+ERROR: Failed to load configuration
+INFO: User logged in
+ERROR: Database connection lost
+INFO: User logged out
+ERROR: File not found
+Результат:
+
+Файл error_logs.txt:
+vbnet
+Копировать код
+ERROR: Failed to load configuration
+ERROR: Database connection lost
+ERROR: File not found
+Вывод частоты слов:
+makefile
+Копировать код
+error: 3
+info: 3
+application: 1
+started: 1
+failed: 1
+to: 1
+load: 1
+configuration: 1
+user: 2
+logged: 2
+in: 1
+database: 1
+connection: 1
+lost: 1
+file: 1
+not: 1
+found: 1
+Итоги:
+Мы реализовали обработку больших файлов построчно.
+Научились фильтровать строки по ключевому слову и сохранять результат.
+Подсчитали частоту встречаемости слов в файле.
