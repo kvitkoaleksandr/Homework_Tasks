@@ -1,0 +1,122 @@
+Решение:
+Шаг 1: Подготовка структуры программы
+Будем использовать стандартные классы Java (BufferedReader, Files, и т. д.).
+Для парсинга CSV-файла можно работать со строками вручную или использовать библиотеку (например, OpenCSV).
+Реализация без сторонних библиотек:
+Код:
+
+java
+Копировать код
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+
+public class CSVProcessor {
+
+    public void calculateTotalSales(String inputFile, String outputFile) {
+        double totalSales = 0.0;
+
+        try (BufferedReader reader = Files.newBufferedReader(Paths.get(inputFile));
+             BufferedWriter writer = Files.newBufferedWriter(Paths.get(outputFile))) {
+
+            String line = reader.readLine(); // Читаем заголовок
+            while ((line = reader.readLine()) != null) {
+                // Разделяем строку на части
+                String[] parts = line.split(",");
+                String product = parts[1]; // Продукт
+                int quantity = Integer.parseInt(parts[2]); // Количество
+                double price = Double.parseDouble(parts[3]); // Цена
+
+                // Подсчитываем сумму для текущей строки
+                double sales = quantity * price;
+                totalSales += sales;
+            }
+
+            // Записываем общую сумму в файл
+            writer.write("Общая сумма продаж: " + totalSales);
+            System.out.println("Итог записан в " + outputFile);
+
+        } catch (IOException e) {
+            System.err.println("Ошибка при обработке файла: " + e.getMessage());
+        }
+    }
+}
+Шаг 2: Разберём код подробно
+Чтение файла с использованием BufferedReader:
+
+java
+Копировать код
+BufferedReader reader = Files.newBufferedReader(Paths.get(inputFile));
+Открываем файл для построчного чтения.
+Пропуск заголовка файла:
+
+java
+Копировать код
+String line = reader.readLine();
+Первую строку (Дата,Продукт,Количество,Цена) читаем, но не обрабатываем.
+Чтение остальных строк:
+
+java
+Копировать код
+while ((line = reader.readLine()) != null) {
+    String[] parts = line.split(",");
+    // Дальше извлекаем данные из частей
+}
+Каждая строка разбивается на массив с помощью split(",").
+Извлечение данных:
+
+java
+Копировать код
+String product = parts[1];
+int quantity = Integer.parseInt(parts[2]);
+double price = Double.parseDouble(parts[3]);
+parts[1] — имя продукта.
+parts[2] — количество.
+parts[3] — цена за единицу.
+Подсчёт суммы продаж:
+
+java
+Копировать код
+double sales = quantity * price;
+totalSales += sales;
+Для каждой строки вычисляется сумма продаж, которая добавляется к totalSales.
+Запись результата в файл:
+
+java
+Копировать код
+writer.write("Общая сумма продаж: " + totalSales);
+Итоговая сумма записывается в файл.
+Шаг 3: Пример вызова метода
+java
+Копировать код
+public class Main {
+    public static void main(String[] args) {
+        CSVProcessor processor = new CSVProcessor();
+
+        // Входной файл (CSV) и выходной файл
+        String inputFile = "sales.csv";
+        String outputFile = "sales_summary.txt";
+
+        processor.calculateTotalSales(inputFile, outputFile);
+    }
+}
+Шаг 4: Тестовые данные
+Файл sales.csv:
+
+yaml
+Копировать код
+Дата,Продукт,Количество,Цена
+2024-11-01,Телефон,2,30000
+2024-11-01,Ноутбук,1,80000
+2024-11-02,Телефон,3,30000
+2024-11-02,Планшет,1,20000
+Ожидаемый результат в sales_summary.txt:
+
+Копировать код
+Общая сумма продаж: 230000.0
+Что можно улучшить:
+Проверка данных: Добавить обработку некорректных строк (например, если одна из строк пустая или содержит неверные данные).
+Логирование: Использовать библиотеку логирования вместо System.out.println.
+Многопоточность: Для больших файлов можно разделить обработку на несколько потоков.
