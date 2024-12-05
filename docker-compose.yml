@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres-db:
+    image: postgres:15
+    container_name: homework_tasks_db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: homework_tasks
+    ports:
+      - "5433:5432" # Пробрасываем порт 5433 хоста на 5432 контейнера
+    volumes:
+      - db_data:/var/lib/postgresql/data # Сохраняем данные базы
+    networks:
+      - homework_tasks_network
+
+networks:
+  homework_tasks_network:
+
+volumes:
+  db_data:
