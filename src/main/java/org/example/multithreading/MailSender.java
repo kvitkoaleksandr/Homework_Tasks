@@ -1,4 +1,4 @@
-package org.example;
+package org.example.multithreading;
 
 public class MailSender {
     public static void main(String[] args) {

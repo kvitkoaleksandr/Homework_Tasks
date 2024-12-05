@@ -1,4 +1,4 @@
-package org.example;
+package org.example.test;
 
 public class VariableDemo {
     private static int staticVariable = 1;

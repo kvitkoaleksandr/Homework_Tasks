@@ -1,4 +1,4 @@
-package org.example;
+package org.example.algorithm;
 
 public class BubbleSorExample {
     public  void bubbleSort(int[] arr) {
