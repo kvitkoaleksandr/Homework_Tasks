@@ -1,5 +1,6 @@
 package org.example;
 
+import org.example.algorithm.SelectionSort;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
