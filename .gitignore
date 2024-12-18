@@ -5,7 +5,9 @@ build/
 !**/src/test/**/build/
 
 ### IntelliJ IDEA ###
+
 .idea/
+
 *.iws
 *.iml
 *.ipr
