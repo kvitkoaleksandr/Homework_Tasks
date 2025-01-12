@@ -1,4 +1,4 @@
-package org.example;
+package org.example.test;
 
 public class DataTypesDemo {
     byte b = 1;
@@ -31,6 +31,4 @@ public class DataTypesDemo {
             System.out.println(s);
         }
     }
-
-
 }

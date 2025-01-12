@@ -1,4 +1,4 @@
-package org.example;
+package org.example.test;
 
 public class AccessModifiersDemo {
     public int publicField = 1;
