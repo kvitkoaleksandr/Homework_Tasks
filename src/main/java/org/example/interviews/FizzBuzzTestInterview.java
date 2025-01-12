@@ -3,19 +3,20 @@ package org.example.interviews;
 public class FizzBuzzTestInterview {
 
     public byte[] fizzBuzzTest(int value) {
-        if (value % 3 == 0 && value % 5 == 0) {
-            return "FizzBuzz".getBytes(); // Возвращает байты строки "FizzBuzz"
-        } else if (value % 3 == 0) {
-            return "Fizz".getBytes(); // Возвращает байты строки "Fizz"
-        } else if (value % 5 == 0) {
-            return "Buzz".getBytes(); // Возвращает байты строки "Buzz"
-        } else {
+        String result = "";
+        if (value % 3 == 0) {
+            result += "Fizz";
+        }
+        if (value % 5 == 0) {
+            result += "Buzz";
+        }
+        if (result.length() == 0) {
             System.out.println("Конец");
-            System.out.println(" RuntimeException Value does not meet any condition");
-            //throw new RuntimeException("Value does not meet any condition");
+
+            //throw new IllegalArgumentException("Value does not meet any condition");
         }
 
-        return new byte[0];
+        return result.getBytes();
     }
 
     public void showTest() {
