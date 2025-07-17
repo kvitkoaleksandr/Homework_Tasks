@@ -32,11 +32,13 @@ public class BubbleSorExample {
             System.out.print(num + " ");
         }
 
-        bubbleSort(arr); // Вызываем метод сортировки
+         // Вызываем метод сортировки
 
         System.out.println("\nМассив после сортировки:");
         for (int num : arr) {
             System.out.print(num + " ");
         }
     }
+
+
 }
