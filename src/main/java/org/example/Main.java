@@ -1,5 +1,4 @@
 package org.example;
-
 import org.example.interviews.FizzBuzzTestInterview;
 
 import java.util.ArrayList;

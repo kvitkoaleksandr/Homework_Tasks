@@ -1,4 +1,4 @@
-package org.example.javaCore;
+package org.example.javaCore.task1;
 
 import java.util.HashMap;
 import java.util.List;
