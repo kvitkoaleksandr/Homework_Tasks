@@ -2,7 +2,9 @@ package org.example.algorithm;
 
 public class SelectionSort {
     public void selectionSort(int[] arr) {
-        int swapCount = 0;
+        if (arr == null || arr.length < 2) {
+            return;
+        }
 
         for (int i = 0; i < arr.length - 1; i++) {
             int minIndex = i;
@@ -13,31 +15,10 @@ public class SelectionSort {
             }
 
             if (minIndex != i) {
-                int temp = arr[minIndex];
-                arr[minIndex] = arr[i];
-                arr[i] = temp;
-                swapCount++;
+                int temp = arr[i];
+                arr[i] = arr[minIndex];
+                arr[minIndex] = temp;
             }
         }
-        System.out.println("\nКоличество обменов: " + swapCount);
-    }
-
-    public void mainNew() {
-        int[] arr = {64, 25, 12, 22, 11};
-
-        System.out.println("\nМассив до сортировки: ");
-        printArray(arr);
-
-        selectionSort(arr);
-
-        System.out.println("\nМассив после сортировки: ");
-        printArray(arr);
-    }
-
-    private void printArray(int[] arr) {
-        for(int num: arr) {
-            System.out.print(num + " ");
-        }
-        System.out.println();
     }
 }
