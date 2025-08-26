@@ -14,33 +14,60 @@ import java.util.Deque;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 public final class CrptApi {
+    private final URI baseUri; // Базовый адрес API (prod/demo); не меняется после создания
+    private final HttpClient http; // Переиспользуемый HTTP-клиент JDK; потокобезопасен, с пулом соединений
+    private final ObjectMapper json; // Jackson-сериализатор/десериализатор JSON; общий, потокобезопасный
+    private final TokenProvider tokenProvider; // Абстракция получения Bearer-токена (DI), можно подменять/обновлять
+   // RateLimiter ещё не добавил в проект
+    private final RateLimiter limiter; // Блокирующий rate-limiter (N req / окно), общий для всех потоков
+    private final Clock clock; // Источник времени (DI) для измерений/таймингов; сейчас передаётся в лимитер
 
     // ===== Public API =====
-    public interface TokenProvider { String getToken(); }
+    // Источник Bearer-токена (DI). Позволяет подменять способ получения/обновления токена без изменения CrptApi.
+    public interface TokenProvider {
+        String getToken();
 
-    public static final class DocumentId {
-        public final String value;
-        public DocumentId(String value) { this.value = Objects.requireNonNull(value, "value"); }
-        @Override public String toString() { return value; }
     }
+    public static final class DocumentId { // public — доступен извне; static — вложенный класс не привязан к экземпляру CrptApi; final — запрещено наследование (stable value object). Не «константа».
+        public final String value;
 
-    // Минимальная модель LP_INTRODUCE_GOODS (дополняй по необходимости)
+
+        public DocumentId(String value) {
+            if (value == null) { // Явная проверка на null с понятным сообщением; объект создаётся только с непустым id.
+                throw new NullPointerException("value is null");
+            }
+            this.value = value;
+        }
+        @Override
+        public String toString() {
+            return value;
+        }
+
+    }
+    // Document — это простая модель (POJO), которую мы отправляем в Честный Знак. Поля названы так же,
+    // как в спецификации API (snake_case), поэтому Jackson без дополнительных аннотаций превратит объект в корректный JSON.
     public static class Document {
+        // participant_inn, producer_inn, production_date, production_type — «шапка» документа:
+        // ИНН участника/производителя, дата производства (строкой YYYY-MM-DD, чтобы не усложнять форматирование дат),
+        // и тип производства (OWN_PRODUCTION/CONTRACT_PRODUCTION).
+        //products — список товарных позиций.
         public String participant_inn;
         public String producer_inn;
         public String production_date;   // YYYY-MM-DD
         public String production_type;   // OWN_PRODUCTION | CONTRACT_PRODUCTION
         public java.util.List<Product> products;
 
+        //Product — одна позиция товара. Поля соответствуют схеме API: данные сертификата,
+        // ИНН владельца/производителя, дата производства, tnved_code, и один из кодов маркировки uit_code/uitu_code.
         public static class Product {
             public String certificate_document;
             public String certificate_document_date;
@@ -51,27 +78,45 @@ public final class CrptApi {
             public String tnved_code;
             public String uit_code;
             public String uitu_code;
+            //Итог: эти классы — минимальная и прозрачная модель полезной нагрузки для типа LP_INTRODUCE_GOODS.
+            // Они существуют здесь только чтобы было удобно собрать валидное тело запроса и сериализовать его
+            // «как в документации» без лишней магии.
+        }
+
+    }
+    // ApiException — любые «клиентские» 4xx-ошибки от CRPT, кроме 401/403; сообщение берётся из error_message.
+    public static class ApiException extends RuntimeException {
+        public ApiException(String m) {
+            super(m);
         }
     }
-
-    // ===== Exceptions =====
-    public static class ApiException extends RuntimeException { public ApiException(String m) { super(m); } }
-    public static class AuthException extends RuntimeException { public AuthException(String m) { super(m); } }
-    public static class TransportException extends RuntimeException {
-        public TransportException(String m, Throwable c) { super(m, c); }
-        public TransportException(String m) { super(m); }
+    // AuthException — отдельный тип для 401/403 (проблемы аутентификации/прав), чтобы вызывать особую обработку
+    // (обновить токен и т.п.).
+    public static class AuthException extends RuntimeException {
+        public AuthException(String m) {
+            super(m);
+        }
     }
-    public static class RateLimitInterruptedException extends RuntimeException { public RateLimitInterruptedException(String m) { super(m); } }
+    // TransportException — сетевые/низкоуровневые сбои и 5xx после ретрая; есть конструктор с cause.
+    public static class TransportException extends RuntimeException {
 
+        public TransportException(String m, Throwable c) {
+            super(m, c);
+        }
+        public TransportException(String m) {
+            super(m);
+        }
+    }
+    // RateLimitInterruptedException — поток прервали во время ожидания в rate-лимитере (мы сохраняем флаг interrupt).
+    public static class RateLimitInterruptedException extends RuntimeException {
+        public RateLimitInterruptedException(String m) {
+            super(m);
+        }
+
+    }
     // ===== State =====
-    private static final Logger LOG = Logger.getLogger(CrptApi.class.getName());
+    //private static final Logger LOG = Logger.getLogger(CrptApi.class.getName());
 
-    private final URI baseUri;
-    private final HttpClient http;
-    private final ObjectMapper json;
-    private final TokenProvider tokenProvider;
-    private final RateLimiter limiter;
-    private final Clock clock;
 
     public CrptApi(TimeUnit unit, int requestLimit, TokenProvider tokenProvider) {
         this(unit, requestLimit, URI.create("https://ismp.crpt.ru/api/v3"), tokenProvider);
@@ -101,6 +146,7 @@ public final class CrptApi {
         this.limiter = new SlidingWindowRateLimiter(unit, requestLimit, clock);
     }
 
+    // ===== Public API =====
     public DocumentId createIntroduceGoods(Object document, String signature, String productGroup) {
         if (document == null) throw new IllegalArgumentException("document is null");
         if (signature == null || signature.isBlank()) throw new IllegalArgumentException("signature is blank");
@@ -128,7 +174,7 @@ public final class CrptApi {
                     .POST(HttpRequest.BodyPublishers.ofString(writeJson(body)))
                     .build();
 
-            logInfo("createIntroduceGoods start", reqId, productGroup, null, 0);
+            log.info("createIntroduceGoods start reqId={} pg={}", reqId, productGroup);
 
             HttpResponse<String> resp = sendOnce(req);
             if (is5xx(resp.statusCode())) {
@@ -142,21 +188,21 @@ public final class CrptApi {
                 CreateDocumentResponse ok = readJson(resp.body(), CreateDocumentResponse.class);
                 String id = (ok != null && ok.value != null) ? ok.value : "";
                 if (id.isEmpty()) throw new TransportException("Empty id in 2xx response");
-                logInfo("createIntroduceGoods ok", reqId, productGroup, id, tookMs);
+                log.info("createIntroduceGoods ok reqId={} pg={} id={} durationMs={}", reqId, productGroup, id, tookMs);
                 return new DocumentId(id);
             }
 
             if (resp.statusCode() == 401 || resp.statusCode() == 403) {
-                logWarn("auth failure " + resp.statusCode(), reqId, productGroup, null, tookMs);
+                log.warn("auth failure {} reqId={} pg={} durationMs={}", resp.statusCode(), reqId, productGroup, tookMs);
                 throw new AuthException(extractError(resp));
             }
 
             if (resp.statusCode() >= 400 && resp.statusCode() < 500) {
-                logWarn("client error " + resp.statusCode(), reqId, productGroup, null, tookMs);
+                log.warn("client error {} reqId={} pg={} durationMs={}", resp.statusCode(), reqId, productGroup, tookMs);
                 throw new ApiException(extractError(resp));
             }
 
-            logError("server error " + resp.statusCode(), reqId, productGroup, null, tookMs, null);
+            log.error("server error {} reqId={} pg={} durationMs={}", resp.statusCode(), reqId, productGroup, tookMs);
             throw new TransportException("Server error " + resp.statusCode() + ": " + extractError(resp));
 
         } catch (InterruptedException e) {
@@ -284,37 +330,13 @@ public final class CrptApi {
         private void cleanup(long now) {
             while (!stamps.isEmpty()) {
                 long oldest = stamps.peekFirst();
-                if (now - oldest >= windowNanos) {
-                    stamps.removeFirst();
-                } else break;
+                if (now - oldest >= windowNanos) stamps.removeFirst();
+                else break;
             }
         }
 
         private long nanoNow() {
-            // От System.nanoTime() берём монотонность; Clock пригодится для тестов/расширений.
             return System.nanoTime();
         }
     }
-
-    // ===== Logging helpers =====
-    private static void logInfo(String msg, String reqId, String pg, String docId, long tookMs) {
-        if (LOG.isLoggable(Level.INFO)) {
-            LOG.log(Level.INFO, () -> String.format("%s reqId=%s pg=%s id=%s durationMs=%d",
-                    msg, reqId, safe(pg), safe(docId), tookMs));
-        }
-    }
-
-    private static void logWarn(String msg, String reqId, String pg, String docId, long tookMs) {
-        if (LOG.isLoggable(Level.WARNING)) {
-            LOG.log(Level.WARNING, () -> String.format("%s reqId=%s pg=%s id=%s durationMs=%d",
-                    msg, reqId, safe(pg), safe(docId), tookMs));
-        }
-    }
-
-    private static void logError(String msg, String reqId, String pg, String docId, long tookMs, Throwable t) {
-        LOG.log(Level.SEVERE, String.format("%s reqId=%s pg=%s id=%s durationMs=%d",
-                msg, reqId, safe(pg), safe(docId), tookMs), t);
-    }
-
-    private static String safe(String s) { return (s == null || s.isBlank()) ? "-" : s; }
 }
