@@ -27,7 +27,6 @@ public final class CrptApi {
     private final HttpClient http; // Переиспользуемый HTTP-клиент JDK; потокобезопасен, с пулом соединений
     private final ObjectMapper json; // Jackson-сериализатор/десериализатор JSON; общий, потокобезопасный
     private final TokenProvider tokenProvider; // Абстракция получения Bearer-токена (DI), можно подменять/обновлять
-   // RateLimiter ещё не добавил в проект
     private final RateLimiter limiter; // Блокирующий rate-limiter (N req / окно), общий для всех потоков
     private final Clock clock; // Источник времени (DI) для измерений/таймингов; сейчас передаётся в лимитер
 
@@ -84,6 +83,7 @@ public final class CrptApi {
         }
 
     }
+    // Обработку исключений ещё не добавил
     // ApiException — любые «клиентские» 4xx-ошибки от CRPT, кроме 401/403; сообщение берётся из error_message.
     public static class ApiException extends RuntimeException {
         public ApiException(String m) {
@@ -289,7 +289,8 @@ public final class CrptApi {
     static final class CreateDocumentResponse { public String value; }
     static final class ErrorResponse { public String error_message; }
 
-    // ===== Rate limiter =====
+    // Контракт лимитера: блокирует поток до разрешённого окна; может быть прерван (InterruptedException).
+    // Позволяет подменять реализацию (DIP).
     interface RateLimiter { void acquire() throws InterruptedException; }
 
     static final class SlidingWindowRateLimiter implements RateLimiter {
@@ -335,6 +336,8 @@ public final class CrptApi {
             }
         }
 
+        // Берём монотонное время для расчёта интервалов (не зависит от системных часов).
+        // Нужно для корректной работы лимитера.
         private long nanoNow() {
             return System.nanoTime();
         }
