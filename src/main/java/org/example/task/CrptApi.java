@@ -1,4 +1,5 @@
 package org.example.task;
+
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -12,7 +13,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Base64;
@@ -27,22 +27,16 @@ public final class CrptApi {
     private final ObjectMapper json;
     private final TokenProvider tokenProvider;
     private final RateLimiter limiter;
-    private final Clock clock;
 
     public CrptApi(TimeUnit unit, int requestLimit, TokenProvider tokenProvider) {
         this(unit, requestLimit, URI.create("https://ismp.crpt.ru/api/v3"), tokenProvider);
     }
 
     public CrptApi(TimeUnit unit, int requestLimit, URI baseUri, TokenProvider tokenProvider) {
-        this(
-                unit,
-                requestLimit,
-                baseUri,
+        this(unit, requestLimit, baseUri,
                 tokenProvider,
                 HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build(),
-                defaultMapper(),
-                Clock.systemUTC()
-        );
+                defaultMapper());
     }
 
     CrptApi(TimeUnit unit,
@@ -50,22 +44,18 @@ public final class CrptApi {
             URI baseUri,
             TokenProvider tokenProvider,
             HttpClient http,
-            ObjectMapper mapper,
-            Clock clock) {
+            ObjectMapper mapper) {
         if (unit == null) throw new IllegalArgumentException("timeUnit is null");
         if (requestLimit <= 0) throw new IllegalArgumentException("requestLimit must be > 0");
         this.baseUri = notNull(baseUri, "baseUri");
         this.tokenProvider = notNull(tokenProvider, "tokenProvider");
         this.http = notNull(http, "http");
         this.json = notNull(mapper, "mapper");
-        this.clock = notNull(clock, "clock");
-        this.limiter = new SlidingWindowRateLimiter(unit, requestLimit, clock);
+        this.limiter = new SlidingWindowRateLimiter(unit, requestLimit);
     }
 
     private static <T> T notNull(T value, String name) {
-        if (value == null) {
-            throw new NullPointerException(name + "is null");
-        }
+        if (value == null) throw new NullPointerException(name + " is null");
         return value;
     }
 
@@ -81,9 +71,7 @@ public final class CrptApi {
         public final String value;
 
         public DocumentId(String value) {
-            if (value == null) {
-                throw new NullPointerException("value is null");
-            }
+            if (value == null) throw new NullPointerException("value is null");
             this.value = value;
         }
 
@@ -150,20 +138,15 @@ public final class CrptApi {
             if (sc >= 200 && sc < 300) {
                 CreateDocumentResponse ok = readJson(resp.body(), CreateDocumentResponse.class);
                 String id = (ok != null && ok.value != null && !ok.value.isBlank()) ? ok.value : null;
-                if (id == null) {
-                    throw new TransportException("Empty id in 2xx response");
-                }
+                if (id == null) throw new TransportException("Empty id in 2xx response");
                 return new DocumentId(id);
             }
 
             if (sc == 401 || sc == 403) {
-                String err = extractError(resp);
-                throw new AuthException(err);
+                throw new AuthException(extractError(resp));
             }
-
             if (sc >= 400 && sc < 500) {
-                String err = extractError(resp);
-                throw new ApiException(err);
+                throw new ApiException(extractError(resp));
             }
 
             String err = extractError(resp);
@@ -240,7 +223,8 @@ public final class CrptApi {
         try {
             ErrorResponse er = json.readValue(body, ErrorResponse.class);
             if (er != null && er.error_message != null && !er.error_message.isBlank()) return er.error_message;
-        } catch (Exception ignored) { }
+        } catch (Exception ignored) {
+        }
         return "HTTP " + resp.statusCode() + " body: " + trim(body, 512);
     }
 
@@ -287,12 +271,10 @@ public final class CrptApi {
         private final int limit;
         private final Deque<Long> stamps = new ArrayDeque<>();
         private final Object monitor = new Object();
-        private final Clock clock;
 
-        SlidingWindowRateLimiter(TimeUnit unit, int limit, Clock clock) {
+        SlidingWindowRateLimiter(TimeUnit unit, int limit) {
             this.windowNanos = unit.toNanos(1L);
             this.limit = limit;
-            this.clock = clock;
         }
 
         @Override
