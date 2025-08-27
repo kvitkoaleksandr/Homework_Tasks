@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    id("application")
 }
 
 group = "org.example"
@@ -23,4 +24,14 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+    jvmArgs("-Dfile.encoding=UTF-8")
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+}
+
+application {
+    mainClass.set("org.example.task.MainCrptApi")
+    applicationDefaultJvmArgs = listOf("-Dfile.encoding=UTF-8")
 }

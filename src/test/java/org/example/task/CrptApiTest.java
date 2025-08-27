@@ -116,7 +116,6 @@ class CrptApiTest {
     @Test
     void rateLimiterBlocksSecondCallAboutOneSecondTest() {
         HttpServer s = startServer(200, "{\"value\":\"id\"}");
-        // Лимит: 1 запрос в секунду
         CrptApi api = new CrptApi(TimeUnit.SECONDS, 1, baseUri(s), () -> "token");
 
         long t0 = System.nanoTime();
@@ -136,7 +135,6 @@ class CrptApiTest {
 
     @Test
     void validationBlankTokenThrowsIAEBeforeNetworkTest() {
-        // Токен проверяется до отправки запроса — сервер не нужен
         CrptApi api = new CrptApi(TimeUnit.SECONDS, 5, URI.create("http://localhost:1"), () -> "");
         assertThrows(IllegalArgumentException.class,
                 () -> api.createIntroduceGoods(minimalDoc(), "SIG", "milk"));
