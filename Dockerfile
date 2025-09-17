@@ -1,6 +1,10 @@
-FROM openjdk:17-jdk-slim
-LABEL authors="acer"
-WORKDIR /app
-COPY build/libs/homework_tasks.jar app.jar
-EXPOSE 8081
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# pg-sandbox/Dockerfile
+FROM postgres:16-alpine
+
+# Значения по умолчанию (их всё равно можно переопределить в compose)
+ENV POSTGRES_DB=training_db \
+    POSTGRES_USER=app \
+    POSTGRES_PASSWORD=app123
+
+# Авто-инициализация БД при первом старте контейнера
+COPY initdb/ /docker-entrypoint-initdb.d/
